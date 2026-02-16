@@ -7,15 +7,17 @@ import 'dotenv/config';
 
 const app = express();
 
-app.use(
-  cors({
-    origin: [
-      'http://localhost:3000',
-      'http://192.168.88.24:3000',
-      'https://moodpad-app.vercel.app',
-    ],
-  }),
-);
+// app.use(
+//   cors({
+//     origin: [
+//       'http://localhost:3000',
+//       'http://192.168.88.24:3000',
+//       'https://moodpad-app.vercel.app',
+//     ],
+//   }),
+// );
+
+app.use(cors());
 
 app.use(express.json());
 

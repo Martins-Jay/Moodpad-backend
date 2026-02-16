@@ -9,7 +9,11 @@ const app = express();
 
 app.use(
   cors({
-    origin: ['http://localhost:3000', 'https://moodpad-app.vercel.app'],
+    origin: [
+      'http://localhost:3000',
+      'http://192.168.88.24:3000',
+      'https://moodpad-app.vercel.app',
+    ],
   }),
 );
 
@@ -22,27 +26,10 @@ const apiLimiter = rateLimit({
   max: 30, // 30 requests per minute per IP
 });
 
-// Deezer route (keep for now)
-app.get('/api/music', apiLimiter, async (req, res) => {
-  const { q, index = 0 } = req.query;
-
-  try {
-    const response = await fetch(
-      `https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=25&index=${index}`,
-    );
-
-    const data = await response.json();
-
-    res.json(data);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch music' });
-  }
-});
-
-// Jamendo route (limiter SHOULD be here)
+// Jamendo route
 app.get('/api/jamendo', apiLimiter, async (req, res) => {
   const { q, offset = 0 } = req.query;
-  
+
   const query = q.toString();
   const offsetNum = Number(offset) || 0;
 
@@ -67,3 +54,20 @@ app.get('/api/jamendo', apiLimiter, async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Backend listening on http://localhost:${PORT}`);
 });
+
+// Deezer route (keep for now)
+// app.get('/api/music', apiLimiter, async (req, res) => {
+//   const { q, index = 0 } = req.query;
+
+//   try {
+//     const response = await fetch(
+//       `https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=25&index=${index}`,
+//     );
+
+//     const data = await response.json();
+
+//     res.json(data);
+//   } catch (error) {
+//     res.status(500).json({ error: 'Failed to fetch music' });
+//   }
+// });

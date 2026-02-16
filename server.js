@@ -1,19 +1,29 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 
-const app = express(); // returns an object
-app.use(cors()); // allows any frontend to make requests
+import 'dotenv/config';
+// console.log('JAMENDO_CLIENT_ID:', process.env.JAMENDO_CLIENT_ID);
+
+const app = express();
+
+app.use(
+  cors({
+    origin: ['http://localhost:3000', 'https://moodpad-app.vercel.app'],
+  }),
+);
+
 app.use(express.json());
-
-// app.use(
-//   cors({
-//     origin: 'http://localhost:3000', // your React app URLS
-//   }),
-// );
 
 const PORT = process.env.PORT || 5008;
 
-app.get('/api/music', async (req, res) => {
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 requests per minute per IP
+});
+
+// Deezer route (keep for now)
+app.get('/api/music', apiLimiter, async (req, res) => {
   const { q, index = 0 } = req.query;
 
   try {
@@ -21,14 +31,39 @@ app.get('/api/music', async (req, res) => {
       `https://api.deezer.com/search?q=${encodeURIComponent(q)}&limit=25&index=${index}`,
     );
 
-    const data = await response.json(); // parses Deezer’s JSON response into a JS object
-    res.json(data); // sends JSON back to the frontend
+    const data = await response.json();
+
+    res.json(data);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch music' });
   }
 });
 
-// Bind app to a port to start the HTTP server
+// Jamendo route (limiter SHOULD be here)
+app.get('/api/jamendo', apiLimiter, async (req, res) => {
+  const { q, offset = 0 } = req.query;
+  
+  const query = q.toString();
+  const offsetNum = Number(offset) || 0;
+
+  try {
+    const clientId = process.env.JAMENDO_CLIENT_ID;
+
+    const response = await fetch(
+      `https://api.jamendo.com/v3.0/tracks/?client_id=${clientId}&format=json&limit=25&offset=${offsetNum}&search=${encodeURIComponent(
+        query,
+      )}&audioformat=mp32`,
+    );
+
+    const data = await response.json();
+
+    res.json({ data: data.results || [] });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch Jamendo music' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Backend listening on http://localhost:${PORT}`);
 });

@@ -3,7 +3,8 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 
 import 'dotenv/config';
-// console.log('JAMENDO_CLIENT_ID:', process.env.JAMENDO_CLIENT_ID);
+console.log('JAMENDO_CLIENT_ID:', process.env.JAMENDO_CLIENT_ID);
+console.log('TMDB:', process.env.TMDB_ACCESS_TOKEN);
 
 const app = express();
 
@@ -48,6 +49,53 @@ app.get('/api/jamendo', apiLimiter, async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: 'Failed to fetch Jamendo music' });
+  }
+});
+
+// TMDb route (movies)
+app.get('/api/tmdb/discover', apiLimiter, async (req, res) => {
+  const { with_genres = '', sort_by = 'popularity.desc', page = 1 } = req.query;
+
+  const pageNum = Math.min(Math.max(Number(page) || 1, 1), 20); // keep it safe
+
+  try {
+    const token = process.env.TMDB_ACCESS_TOKEN;
+
+    if (!token) {
+      return res
+        .status(500)
+        .json({ error: 'TMDB_ACCESS_TOKEN missing in env' });
+    }
+
+    const url = new URL('https://api.themoviedb.org/3/discover/movie');
+    if (with_genres) url.searchParams.set('with_genres', String(with_genres));
+    url.searchParams.set('sort_by', String(sort_by));
+    url.searchParams.set('page', String(pageNum));
+    url.searchParams.set('include_adult', 'false');
+    url.searchParams.set('language', 'en-US');
+
+    const response = await fetch(url.toString(), {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      return res.status(response.status).json({
+        error: 'Failed to fetch TMDb movies',
+        details: errText,
+      });
+    }
+
+    const data = await response.json();
+
+    // Keep response clean like your Jamendo route
+    res.json({ results: data.results || [] });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch TMDb movies' });
   }
 });
 

@@ -56,45 +56,37 @@ app.get('/api/jamendo', apiLimiter, async (req, res) => {
 app.get('/api/tmdb/discover', apiLimiter, async (req, res) => {
   const { with_genres = '', sort_by = 'popularity.desc', page = 1 } = req.query;
 
-  const pageNum = Math.min(Math.max(Number(page) || 1, 1), 20); // keep it safe
-
   try {
     const token = process.env.TMDB_ACCESS_TOKEN;
 
-    if (!token) {
-      return res
-        .status(500)
-        .json({ error: 'TMDB_ACCESS_TOKEN missing in env' });
-    }
-
     const url = new URL('https://api.themoviedb.org/3/discover/movie');
-    if (with_genres) url.searchParams.set('with_genres', String(with_genres));
-    url.searchParams.set('sort_by', String(sort_by));
-    url.searchParams.set('page', String(pageNum));
+
+    url.searchParams.set('with_genres', with_genres);
+    url.searchParams.set('sort_by', sort_by);
+    url.searchParams.set('page', page);
+    url.searchParams.set('primary_release_date.gte', '2020-01-01');
+    url.searchParams.set('vote_count.gte', '300');
+    url.searchParams.set('vote_average.gte', '6.5');
     url.searchParams.set('include_adult', 'false');
     url.searchParams.set('language', 'en-US');
+
+    // filters to modern movies only
+    url.searchParams.set('primary_release_date.gte', '2020-01-01');
+
+    // optional but recommended
+    url.searchParams.set('vote_count.gte', '100'); // removes obscure unknown movies
 
     const response = await fetch(url.toString(), {
       headers: {
         Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        accept: 'application/json',
       },
     });
 
-    if (!response.ok) {
-      const errText = await response.text();
-      return res.status(response.status).json({
-        error: 'Failed to fetch TMDb movies',
-        details: errText,
-      });
-    }
-
     const data = await response.json();
 
-    // Keep response clean like your Jamendo route
     res.json({ results: data.results || [] });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
     res.status(500).json({ error: 'Failed to fetch TMDb movies' });
   }
 });
